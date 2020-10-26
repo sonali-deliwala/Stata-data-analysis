@@ -1,0 +1,205 @@
+clear
+set more off
+
+
+import delimited "/Users/ssd/Downloads/2010 1 Quarter PUDF.csv"
+
+gen isPsych = (fac_psych_ind == "X")
+rename princ_diag_code diag_code
+
+gen diag_3digits = substr(diag_code, 1, 3)
+gen icd9 = real(diag_3digits)
+
+gen icd9_full = real(diag_code)
+
+gen year = 2010
+************************************************************************
+
+**CLASSIFYING PATIENT DIAGNOSIS
+
+*all psych patients
+gen is_psych_patient = (icd9 >= 290 & icd9 <=319)
+drop if icd9 < 290 | icd9 > 319
+
+*patients with major depression
+gen major_depression = (icd9_full == 2962 | icd9_full == 29621 | icd9_full == 29622 | icd9_full == 29623 | icd9_full == 29624 | icd9_full == 29625 | icd9_full == 29626 | icd9_full == 2963 | icd9_full == 29631 | icd9_full == 29632 | icd9_full == 29633 | icd9_full == 29634 | icd9_full == 29635 | icd9_full == 29636)
+
+*patients with major depression
+*gen major_depression = (icd9_full == 2962 | (icd9_full >= 29621 & icd9_full <= 29622) | icd9_full == 29623 | icd9_full == 29624 | icd9_full == 29625 | icd9_full == 29626 | icd9_full == 2963 | icd9_full == 29631 | icd9_full == 29632 | icd9_full == 29633 | icd9_full == 29634 | icd9_full == 29635 | icd9_full == 29636)
+*patients with bipolar disorder
+*gen bipolar = (icd9_full == 296 | (icd9_full>= 29601 & icd9_full<=29606) | icd9_full==2964 | (icd9_full>=29641 & icd9_full<=29646) | icd9_full==2965 | (icd9_full>=29651 & icd9_full<=29656) | icd9_full==2966 | (icd9_full>=29661 | icd9_full<=29666) | icd9_full==2967 | icd9_full==2968)
+
+*patients with bipolar disorder
+gen bipolar = (icd9_full == 296 | icd9_full== 29601 | icd9_full==29602  | icd9_full==29603 | icd9_full==29604 | icd9_full==29605 | icd9_full==29606 | icd9_full==2964 | icd9_full==29641 | icd9_full==29642 | icd9_full==29643 | icd9_full==29644 | icd9_full==29645 | icd9_full==29646 | icd9_full==2965 | icd9_full==29651 | icd9_full==29652 | icd9_full==29653 | icd9_full==29654 | icd9_full==29655 | icd9_full==29656 | icd9_full==2966 | icd9_full==29661 | icd9_full==29662 | icd9_full==29663 | icd9_full==29664 | icd9_full==29665 | icd9_full==29666 | icd9_full==2967 | icd9_full==2968)
+
+*patients with schizophrenia
+gen schizophrenia = icd9 == 295
+
+**CLASSIFYING PATIENT RACE
+
+gen nrace = 0
+
+* nrace 1 = white
+replace nrace = 1 if (race=="4")
+
+* nrace 2 = black 
+replace nrace = 2 if (race == "3")
+
+* nrace 3 = hispanic
+replace nrace = 3 if (ethnicity == "1")
+
+************************************************************************
+
+**CLASSIFYING PROVIDER TYPE
+
+* using previous code:
+gen psychhospital = 1 if strpos(provider_name, "Behavioral")
+replace psychhospital = 1 if strpos(provider_name, "Psychiatric")
+replace psychhospital =1 if provider_name=="Carrollton Springs" | provider_name=="Cedar Crest Hospital" | provider_name=="Clarity Child Guidance Center" | provider_name=="Devereux Texas Treatment Network" | provider_name=="Glen Oaks Hospital"  | provider_name=="Hickory Trail Hospital"  | provider_name=="Intracare North Hospital"  | provider_name=="Kingwood Pines Hospital"  | provider_name=="Laurel Ridge Treatment Center" | provider_name=="Millwood Hospital" | strpos(provider_name, "Montgomery County Mental Health")  | provider_name=="Red River Regional" | provider_name=="Hospital River Crest Hospital"  | provider_name=="Sunrise Canyon"  | provider_name=="Texas NeuroRehab Center" | provider_name=="Menninger Clinic" | provider_name=="West Oaks Hospital"
+gen psychward = fac_psych_ind!=""
+replace psychward = 0 if psychhospital==1
+gen general = (psychhospital!=1 & psychward != 1)
+
+* creating a new variable to indicate a teaching variable
+gen teaching_hospital  = 0
+replace teaching_hospital = 1 if (fac_teaching_ind == "A" | fac_teaching_ind == "X")
+
+
+* creating new numeric variable "hospital" to classify all provider types
+gen hospital = 0
+
+*general hospitals with no psych wards (1)
+replace hospital = 1 if (general == 1)
+
+*general hospitals with psych wards (2)
+replace hospital = 2 if (psychward == 1)
+
+*psych hospitals (3)
+replace hospital = 3 if psychhospital ==1
+
+*teaching hospitals with no psych wards (4)
+replace hospital = 4 if (teaching_hospital==1 & psychward==0)
+
+*teaching hospitals with psych wards (5)
+replace hospital = 5 if (teaching_hospital==1 & psychward==1)
+
+
+***********************************************************************
+
+** SUBSETTING FOR RACE ACROSS DIAGNOSIS
+
+** I would "tab" different variables with the below "breakdowns" so that I 
+** could record the numbers across race
+
+** SCHIZOPHRENIA patients across race:
+
+gen schizophrenia_breakdown = 0
+
+* white schizophrenia patients
+replace schizophrenia_breakdown = 1 if (nrace==1 & schizophrenia==1)
+
+* black schizophrenia patients
+replace schizophrenia_breakdown = 2 if (nrace==2 & schizophrenia==1)
+
+* hispanic schizophrenia patients
+replace schizophrenia_breakdown = 3 if (nrace==3 & schizophrenia==1)
+ 
+
+** BIPOLAR disorder patients across race:
+
+gen bipolar_breakdown = 0
+
+* white bipolar patients
+replace bipolar_breakdown = 1 if (nrace==1 & bipolar==1)
+
+* black bipolar patients
+replace bipolar_breakdown = 2 if (nrace==2 & bipolar==1)
+
+* hispanic bipolar patients
+replace bipolar_breakdown = 3 if (nrace==3 & bipolar==1)
+
+
+** DEPRESSION disorder patients across race:
+
+gen depression_breakdown = 0
+
+* white bipolar patients
+replace depression_breakdown = 1 if (nrace==1 & major_depression==1)
+
+* black bipolar patients
+replace depression_breakdown = 2 if (nrace==2 & major_depression==1)
+
+* hispanic bipolar patients
+replace depression_breakdown = 3 if (nrace==3 & major_depression==1)
+
+**************************************************************************
+
+** SUBSETTING FOR GENDER AND RACE:
+
+
+* WHITE PATIENTS
+gen white = 0
+
+* white male patients
+replace white=1 if (nrace==1 & sex_code=="M")
+
+* white female patients
+replace white=2 if (nrace==1 & sex_code=="F")
+
+
+* BLACK PATIENTS
+gen black = 0
+
+* black male patients
+replace black=1 if (nrace==2 & sex_code=="M")
+
+* black female patients
+replace black=2 if (nrace==2 & sex_code=="F")
+
+
+* HISPANIC PATIENTS
+gen hispanic = 0
+
+* black male patients
+replace hispanic=1 if (nrace==3 & sex_code=="M")
+
+* black female patients
+replace hispanic=2 if (nrace==3 & sex_code=="F")
+
+**************************************************************************
+
+**SUBSETTING FOR INSURANCE TYPE:
+
+gen medicare = first_payment_src=="MA" | first_payment_src=="MB" | first_payment_src=="16"
+
+gen medicaid = first_payment_src=="MC"
+
+gen private = first_payment_src=="12" | first_payment_src=="13" | first_payment_src=="14" | first_payment_src=="15" |first_payment_src=="BL" | first_payment_src=="CI" | first_payment_src=="HM"
+
+gen other = medicare==0&medicaid==0&private==0
+
+gen insurance = medicare
+
+replace insurance = 2 if medicaid==1
+
+replace insurance = 3 if private==1
+
+replace insurance = 4 if other==1
+
+label define insurance 1 "Medicare" 2 "Medicaid" 3 "private" 4 "other", replace
+
+label list insurance
+
+replace insurance = . if first_payment_src==""
+
+**************************************************************************
+
+***9.4.20***
+
+table nrace, c(m schizophrenia sem schizophrenia) 
+
+table nrace, c(m bipolar sem bipolar)
+
+table nrace, c(m major_depression sem major_depression)
+
+
